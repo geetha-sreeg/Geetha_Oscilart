@@ -1,4 +1,5 @@
 //define canvas variables (below this thingy)
+let reset = false;
 var interval = null;
 
 var canvas = document.getElementById("canvas");
@@ -19,6 +20,7 @@ function drawWave() {
 
     counter = 0;
     interval = setInterval(line, 20);
+    reset = false;
 }
 
 function line() {
@@ -31,6 +33,8 @@ function line() {
         clearInterval(interval);
     }
 }
+
+
 
 //audio stuff -- that stupid phobia where I keep checking if my old code works after adding new shtuff (is it just me?)
 const input = document.getElementById('input');
@@ -54,7 +58,7 @@ gainNode.connect(audioCtx.destination);
 
 gainNode.gain.setValueAtTime(100, audioCtx.currentTime); // ← NOTE: still high, but keeping as-is per your request
 
-gainNode.gain.setValueAtTime(0, audioCtx.currentTime + 1);
+gainNode.gain.setValueAtTime(0, audioCtx.currentTime + 0.9);
 
 //INSTRUCTIONS WERE A BIT CONFUSING IN THE JAM, IT INITIALLY DIDN'T WORK BUT I REFERRED MDN DOCS AND REALIZED THAT I HAD OT PUT THIS IN THE FUNCTION :(
 function frequency(pitch, oscillator){
@@ -62,23 +66,67 @@ function frequency(pitch, oscillator){
     freq = pitch / 10000; //"that" function lol
 }
 
-function handle(){
+
+/*function handle(){
     audioCtx.resume();
 
-    const oscillator = audioCtx.createOscillator();
-    oscillator.type = "sine";
-    oscillator.connect(gainNode);
-    oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 1);
+    const inputVal = input.value.trim().toUpperCase(); //WASN'T IN THE JAM, BUT THANKS TO MY COMPUTER APPLICATIONS TEACHER FOR HELPING ME WITH THE LOGIC!!!
 
-    gainNode.gain.value = 1;
+    for (let i = 0; i < inputVal.length; i++) {
+        const noteChar = inputVal[i]; // break down input one character at a time
+        const mappedFreq = notenames.get(noteChar);
+        const finalFreq = mappedFreq || parseFloat(noteChar); // fallback if someone types a number (unlikely per char)
+
+        if (!isNaN(finalFreq)) {
+            const oscillator = audioCtx.createOscillator(); // create new oscillator for each note
+            oscillator.type = "sine";
+            oscillator.connect(gainNode);
+            oscillator.start(audioCtx.currentTime + i * 0.5); // stagger notes so they don't overlap
+            oscillator.stop(audioCtx.currentTime + i * 0.5 + 0.4); // short burst
+
+            gainNode.gain.setValueAtTime(1, audioCtx.currentTime + i * 0.5);
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime + i * 0.5 + 0.4);
+
+            frequency(finalFreq, oscillator);  // sets pitch and freq
+            drawWave();                        // uses freq to draw (help from my prof again :())
+        }
+    }
+}*/
+
+function handle(){
+    reset = true;
+    audioCtx.resume();
 
     const inputVal = input.value.trim().toUpperCase(); //WASN'T IN THE JAM, BUT THANKS TO MY COMPUTER APPLICATIONS TEACHER FOR HELPING ME WITH THE LOGIC!!!
-    const mappedFreq = notenames.get(inputVal);
-    const finalFreq = mappedFreq || parseFloat(inputVal);
 
-    if (!isNaN(finalFreq)) {
-        frequency(finalFreq, oscillator);  // sets pitch and freq
-        drawWave();                        // uses freq to draw (help from my prof again :())
+    for (let i = 0; i < inputVal.length; i++) {
+        const noteChar = inputVal[i];
+        const mappedFreq = notenames.get(noteChar);
+        const finalFreq = mappedFreq || parseFloat(noteChar); // fallback if someone types a number (unlikely per char)
+
+        if (!isNaN(finalFreq)) {
+            const oscillator = audioCtx.createOscillator(); // create new oscillator for each note
+            const localGain = audioCtx.createGain();        // ← NEW: separate gain node for each oscillator
+
+            oscillator.type = "sine";
+            oscillator.connect(localGain);
+            localGain.connect(audioCtx.destination);
+
+            const startTime = audioCtx.currentTime + i * 0.6;
+            const stopTime = startTime + 0.5;
+
+            oscillator.frequency.setValueAtTime(finalFreq, startTime);
+            oscillator.start(startTime);
+            oscillator.stop(stopTime);
+
+            localGain.gain.setValueAtTime(1, startTime);
+            localGain.gain.setValueAtTime(0, stopTime);
+
+            // Delay drawing the wave to match the note timing
+            setTimeout(() => {
+                freq = finalFreq / 10000; // update global freq for drawWave
+                drawWave();               // uses freq to draw (help from my prof again :())
+            }, i * 600); // match audio delay
+        }
     }
 }
